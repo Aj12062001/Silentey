@@ -61,6 +61,4 @@ Silent Key is built using **Python + Flask + Web Frontend**.
    - The system verifies expiry and decrypts message.
    - Countdown timer starts from the *original expiry time* (not remaining time).  
 
----
 
-## 📂 Project Structure
