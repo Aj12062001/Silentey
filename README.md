@@ -1,22 +1,4 @@
-<!-- Animated Header -->
-[![Typing SVG](https://readme-typing-svg.demolab.com?font=Fira+Code&size=24&duration=4000&pause=500&color=F74747&center=true&vCenter=true&width=500&lines=Hi+there!+👋+I'm+Ajin;MCA+Student+%7C+Tech+Explorer;Welcome+to+my+GitHub+Profile!)](https://github.com/Aj12062001)
 
-<p align="center">
-  <img src="https://media.giphy.com/media/qgQUggAC3Pfv687qPC/giphy.gif" width="300" />
-</p>
-
-Welcome to my GitHub profile! I'm a passionate developer with a love for **secure systems**, **clean design**, and **efficient code**.  
-This repository contains my **20MCA245 Mini Project**: *Silent Key - QR Code Encryption Tool with One-Time AES Key*.  
-
----
-
-<div align="center">
-  <img src="https://komarev.com/ghpvc/?username=Aj12062001&color=101913&style=flat-square" />
-  <img src="https://img.shields.io/github/stars/Aj12062001?label=Stars&color=101913&style=flat-square" />
-  <img src="https://img.shields.io/github/followers/Aj12062001?label=Followers&color=101913&style=flat-square" />
-</div>
-
----
 
 # 🔐 Silent Key – QR Code Encryption Tool with One-Time AES Key
 
