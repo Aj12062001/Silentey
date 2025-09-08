@@ -1,112 +1,136 @@
 from flask import Flask, request, jsonify, send_file, send_from_directory
-import qrcode
-import io
-import time
-import json
 import os
-from cryptography.fernet import Fernet
+import base64
+import json
+import time
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+import qrcode
+import cv2
+import numpy as np
 
-# Flask app
 app = Flask(__name__, static_folder="static")
 
-# Directory to save QR codes
-SAVE_DIR = r"F:\mini project\code\saved_qr_codes"
+SAVE_DIR = "saved_qr_codes"
 os.makedirs(SAVE_DIR, exist_ok=True)
 
+# Dictionary to track QR usage (first decryption start time)
+qr_usage = {}  # { qr_id: first_decryption_time }
 
+
+def derive_key(passphrase: str, salt: bytes) -> bytes:
+    kdf = PBKDF2HMAC(
+        algorithm=hashes.SHA256(),
+        length=32,
+        salt=salt,
+        iterations=100000,
+        backend=default_backend()
+    )
+    return kdf.derive(passphrase.encode())
+
+
+def encrypt_message(message: str, passphrase: str, expiry: int) -> str:
+    salt = os.urandom(16)
+    iv = os.urandom(16)
+    key = derive_key(passphrase, salt)
+
+    cipher = Cipher(algorithms.AES(key), modes.CFB(iv), backend=default_backend())
+    encryptor = cipher.encryptor()
+    ciphertext = encryptor.update(message.encode()) + encryptor.finalize()
+
+    payload = {
+        "salt": base64.b64encode(salt).decode(),
+        "iv": base64.b64encode(iv).decode(),
+        "ciphertext": base64.b64encode(ciphertext).decode(),
+        "expiry": expiry,
+    }
+    return json.dumps(payload)
+
+
+def decrypt_message(payload: dict, passphrase: str, qr_id: str):
+    try:
+        salt = base64.b64decode(payload["salt"])
+        iv = base64.b64decode(payload["iv"])
+        ciphertext = base64.b64decode(payload["ciphertext"])
+        expiry = int(payload["expiry"])
+    except Exception:
+        return {"error": "Invalid QR data"}
+
+    now = int(time.time())
+    if qr_id in qr_usage:
+        first_use = qr_usage[qr_id]
+        elapsed = now - first_use
+        if elapsed > expiry:
+            return {"error": "QR code expired"}
+        remaining = expiry - elapsed
+    else:
+        qr_usage[qr_id] = now
+        remaining = expiry
+
+    try:
+        key = derive_key(passphrase, salt)
+        cipher = Cipher(algorithms.AES(key), modes.CFB(iv), backend=default_backend())
+        decryptor = cipher.decryptor()
+        decrypted = decryptor.update(ciphertext) + decryptor.finalize()
+        return {"message": decrypted.decode(), "remaining": remaining}
+    except Exception:
+        return {"error": "Wrong passphrase or corrupted QR"}
+
+
+# Serve main page from static
 @app.route("/")
-def home():
+def index():
     return send_from_directory(app.static_folder, "index.html")
 
 
-# Generate QR image
-def make_qr(data, filename=None):
-    qr = qrcode.QRCode(version=1, box_size=10, border=5)
-    qr.add_data(data)
-    qr.make(fit=True)
-    img = qr.make_image(fill="black", back_color="white")
-
-    # Save to disk if filename provided
-    if filename:
-        filepath = os.path.join(SAVE_DIR, filename)
-        img.save(filepath)
-
-    # Also return as in-memory file
-    buf = io.BytesIO()
-    img.save(buf, format="PNG")
-    buf.seek(0)
-    return buf
-
-
-@app.route('/encrypt', methods=['POST'])
+@app.route("/encrypt", methods=["POST"])
 def encrypt():
-    try:
-        text = request.form.get('text')
-        expiry = request.form.get('expiry')
-        passphrase = request.form.get('passphrase')
+    text = request.form["text"]
+    expiry = int(request.form["expiry"])
+    passphrase = request.form["passphrase"]
 
-        if not text or not expiry or not passphrase:
-            return jsonify({"error": "Missing input fields"}), 400
+    payload = encrypt_message(text, passphrase, expiry)
 
-        expiry = int(expiry)
-        expiry_time = int(time.time()) + expiry
+    qr_id = base64.urlsafe_b64encode(os.urandom(6)).decode()
+    img = qrcode.make(payload)
+    file_path = os.path.join(SAVE_DIR, f"{qr_id}.png")
+    img.save(file_path)
 
-        # Generate encryption key + encrypt text
-        key = Fernet.generate_key()
-        cipher = Fernet(key)
-        encrypted = cipher.encrypt(text.encode())
-
-        # Save cipher details to file
-        with open("secret.json", "w") as f:
-            json.dump({
-                "cipher": encrypted.decode(),
-                "expiry": expiry_time,
-                "duration": expiry,
-                "key": key.decode()
-            }, f)
-
-        # Generate unique QR filename
-        filename = f"qr_{int(time.time())}.png"
-
-        # Create + save QR to disk and buffer
-        buf = make_qr(encrypted.decode(), filename)
-
-        # Return QR image as response
-        return send_file(buf, mimetype="image/png")
-
-    except Exception as e:
-        return jsonify({"error": f"Encryption failed: {str(e)}"}), 500
+    return send_file(file_path, mimetype="image/png")
 
 
-@app.route('/decrypt', methods=['POST'])
+@app.route("/decrypt", methods=["POST"])
 def decrypt():
+    if "qrfile" not in request.files:
+        return jsonify({"error": "No file uploaded"}), 400
+
+    qrfile = request.files["qrfile"].read()
+    passphrase = request.form["passphrase"]
+
+    np_img = np.frombuffer(qrfile, np.uint8)
+    img = cv2.imdecode(np_img, cv2.IMREAD_COLOR)
+
+    detector = cv2.QRCodeDetector()
+    data_str, points, _ = detector.detectAndDecode(img)
+
+    if not data_str:
+        return jsonify({"error": "No QR code detected"}), 400
+
     try:
-        file = request.files['qrfile']
-        passphrase = request.form.get('passphrase')
+        payload = json.loads(data_str)
+    except Exception:
+        return jsonify({"error": "Invalid QR payload"}), 400
 
-        # Load cipher details
-        with open("secret.json") as f:
-            secret = json.load(f)
+    qr_id = base64.urlsafe_b64encode(
+        (payload["salt"] + payload["iv"] + payload["ciphertext"]).encode()
+    ).decode()[:12]
 
-        expiry_time = secret["expiry"]
-        duration = secret["duration"]  # original user-set duration
-
-        if time.time() > expiry_time:
-            return jsonify({"error": "Message expired"})
-
-        # Decrypt text
-        cipher = Fernet(secret["key"].encode())
-        decrypted = cipher.decrypt(secret["cipher"].encode()).decode()
-
-        # Return decrypted message + original expiry duration
-        return jsonify({
-            "message": decrypted,
-            "expiry": duration
-        })
-
-    except Exception as e:
-        return jsonify({"error": f"Decryption failed: {str(e)}"}), 500
+    result = decrypt_message(payload, passphrase, qr_id)
+    return jsonify(result)
 
 
 if __name__ == "__main__":
+    print("Starting Flask server...")
     app.run(debug=True)
