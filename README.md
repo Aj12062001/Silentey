@@ -67,5 +67,5 @@ Welcome to **Silent Key** – a secure and lightweight QR code encryption tool u
 3. Decrypt message with AES key + passphrase.  
 4. AES key is deleted immediately after decryption.  
 
-**Encryption Flow Diagram:**
+
 
