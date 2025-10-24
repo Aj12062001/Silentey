@@ -1,30 +1,30 @@
-
-
 # 🔐 Silent Key – QR Code Encryption Tool with One-Time AES Key
 
-## 📌 Problem Statement  
+## 📌 Problem Statement
 In today’s digital world, secure communication is essential when transmitting sensitive information across public or untrusted channels.  
-Traditional tools often require persistent keys, creating risks.  
-This project solves it with **ephemeral AES keys** + **QR code sharing** for lightweight and secure offline communication.
+Traditional tools often require persistent keys, creating security risks.  
+
+**Silent Key** solves this problem using **ephemeral AES keys** and **QR code sharing**, enabling lightweight and secure offline communication.
 
 ---
 
 ## 🎯 Objectives
-- 🔑 Encrypt messages using a one-time AES key.  
-- 📷 Encode encrypted messages into QR codes for sharing.  
-- 🔓 Decrypt securely using a passphrase-derived AES key.  
-- ❌ Ensure the AES key is never exposed in plaintext.  
-- 🗑️ Keys are temporary and deleted after use.  
+- 🔑 Encrypt messages using a **one-time AES key**.  
+- 📷 Encode encrypted messages into **QR codes** for easy sharing.  
+- 🔓 Decrypt securely using a **passphrase-derived AES key**.  
+- ❌ Ensure AES keys are **never exposed in plaintext**.  
+- 🗑️ **Temporary keys** that are deleted after use.
 
 ---
 
-## ⚙️ Proposed System
-Silent Key is built using **Python + Flask + Web Frontend**.  
-- User enters a message + passphrase.  
-- Message is encrypted with AES (via Fernet).  
-- Ciphertext is encoded into a QR code.  
-- Receiver scans QR + enters passphrase → message is decrypted.  
-- Keys are one-time use and ephemeral.  
+## ⚙️ System Overview
+Silent Key is a **Python + Flask** application with a **web frontend**:
+
+1. User enters a message and passphrase.  
+2. Message is encrypted with **AES (via Fernet)**.  
+3. Ciphertext is encoded into a **QR code**.  
+4. Receiver scans the QR code and enters the passphrase → message is decrypted.  
+5. AES keys are **one-time use** and ephemeral.  
 
 ---
 
@@ -40,7 +40,7 @@ Silent Key is built using **Python + Flask + Web Frontend**.
 **Libraries**  
 - 🔐 `cryptography` → AES/Fernet encryption  
 - 🧾 `qrcode` → Generate QR codes  
-- 📷 `pyzbar` / `opencv-python` → Scan & decode QR  
+- 📷 `pyzbar` / `opencv-python` → Scan & decode QR codes  
 - ⚡ Flask → Backend server  
 
 **Tools**  
@@ -51,14 +51,16 @@ Silent Key is built using **Python + Flask + Web Frontend**.
 
 ## 🚀 How It Works
 
-1. **Encryption**
-   - Enter message + passphrase + expiry time (seconds).
-   - Message is encrypted with a one-time AES key.
-   - Ciphertext is saved and a QR code is generated + stored in `/saved_qr_codes`.
+### 1️⃣ Encryption
+- Enter **message**, **passphrase**, and **expiry time (seconds)**.  
+- Message is encrypted with a **one-time AES key**.  
+- Ciphertext is saved and a **QR code** is generated in `/saved_qr_codes`.
 
-2. **Decryption**
-   - Upload the QR code + enter the same passphrase.
-   - The system verifies expiry and decrypts message.
-   - Countdown timer starts from the *original expiry time* (not remaining time).  
+### 2️⃣ Decryption
+- Upload the QR code and enter the **same passphrase**.  
+- System verifies expiry and decrypts the message.  
+- Countdown timer starts from the **original expiry time**.
 
+---
 
+## 📁 Project Structure
